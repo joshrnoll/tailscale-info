@@ -3,7 +3,7 @@ My homelab playbook and [roles](https://galaxy.ansible.com/ui/repo/published/jos
 
 
 ## How I Automate It
-Both servers and containers are automatically added to my tailnet with Ansible. This is done with a mix of the [artis3n.tailscale](https://galaxy.ansible.com/ui/standalone/roles/artis3n/tailscale/) module (for physical machines and VMs) and using a Tailscale 'sidecar' container to connect containers directly to my tailnet as outlined in this [article](https://tailscale.com/blog/docker-tailscale-guide). Architecturally, the sidecar container looks like this:
+Both servers and containers are automatically added to my tailnet with Ansible. This is done with a mix of the [artis3n.tailscale](https://galaxy.ansible.com/ui/standalone/roles/artis3n/tailscale/) module (for physical machines and VMs) and using a Tailscale 'sidecar' container to connect docker containers directly to my tailnet as outlined in this [article](https://tailscale.com/blog/docker-tailscale-guide). Architecturally, the sidecar container looks like this:
 
 ![](ts-container.drawio.svg)
 
@@ -39,7 +39,7 @@ The below example does this and creates two tags: one for ```servers``` and one 
 You can call the tags anything you want. You just have to tag the OAuth key with *something*. You can also choose to add multiple tags to an Oauth client. 
 
 ### Step Two - Creating an OAuth Client
- Now we need to actually create the OAuth clients. Once logged in, select ***Settings*** then ***Generate OAuth client...***
+ Now we need to create the OAuth clients. From the admin console, select ***Settings*** then ***Generate OAuth client...***
 
 ![](generate-oauth-1.png)
 
@@ -59,11 +59,16 @@ Optionally, you can also use a tailscale [authkey](https://tailscale.com/kb/1085
 
 #### Adding Your Secret to Ansible Vault
 
-[Ansible vault](https://docs.ansible.com/ansible/latest/vault_guide/index.html) makes it really easy to store sensitive variables securely. In a nutshell, the file is encrypted, but the vault password when running your playbook allows Ansible to read and use the variables securely. So you can, in theory, securely commit these files to a remote git repo. Though, I still recommend adding them to your .gitignore file. 
+[Ansible vault](https://docs.ansible.com/ansible/latest/vault_guide/index.html) makes it really easy to store sensitive variables securely. In a nutshell, the file is encrypted, but providing the vault password when running your playbook allows Ansible to read and use the variables securely. So you can, in theory, securely commit these files to a remote git repo. Though, I still recommend adding them to your .gitignore file. 
+
+Creating a vault file is very simple. It looks like this:
 
 ```
 ansible-vault create secrets.yml
 ```
+
+You can also use ```ansible-vault edit``` and ```ansible-vault view``` at any point to go back and edit/view your vault file. 
+
 The contents of the file should look like this:
 
 ```YAML
@@ -74,10 +79,10 @@ tailscale_servers_oauth_client:
 ```
 
 ##### Why Dictionary Format?
-I discovered in testing that the variable containing your authkey must be in dictionary/hash format for it to work with the [artis3n.tailscale](https://galaxy.ansible.com/ui/standalone/roles/artis3n/tailscale/) role. So, for consistency, I store both the servers and the containers secrets this way. 
+I discovered in testing that the variable containing your OAuth client secret/authkey must be in dictionary/hash format for it to work with the [artis3n.tailscale](https://galaxy.ansible.com/ui/standalone/roles/artis3n/tailscale/) role. So, for consistency, I store both the servers and the containers secrets this way. 
 
 ### Using Your OAuth Client
-Now, when using anything that requires this secret, you can do so like this:
+Here's an example playbook that uses the OAuth client secret:
 
 ```YAML
 - name: A playbook that needs your Tailscale OAuth client secret
@@ -102,4 +107,14 @@ Now, when using anything that requires this secret, you can do so like this:
 
 Notice, the first thing we do is import the variables from our ```secrets.yml``` Ansible vault file. Then, we use the ```joshrnoll.homelab.tailscale_container role```, which requires an oauth client secret passed into ```tailscale_container_oauth_client_secret``` variable. We pass the  ```"{{ tailscale_containers_oauth_key['key'] }}"``` variable into it (a variable within a variable).
 
-Now, when we run the playbook, we use the ```--ask-vault-pass``` or ```-J``` flag. So Ansible will open the vault file, read the value of ```tailscale_containers_oauth_key['key']``` and pass it into ```tailscale_container_oauth_client_secret``` when the role executes. 
+Now, when we run the playbook, we use the ```--ask-vault-pass``` or ```-J``` flag. So Ansible will open the vault file, read the value of ```tailscale_containers_oauth_key['key']``` and pass it into ```tailscale_container_oauth_client_secret``` when the role executes. So, the command to run your playbook would look like this:
+
+```bash
+ansible-playbook playbook.yml -i hosts.yml --ask-vault-pass
+```
+
+or
+
+```bash
+ansible-playbook playbook.yml -i hosts.yml -J
+```
