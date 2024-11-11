@@ -1,3 +1,5 @@
+![](/nollhomelab-tailscale-logo.png)
+
 # Tailscale
 My homelab playbook and [roles](https://galaxy.ansible.com/ui/repo/published/joshrnoll/homelab/) are built around my usage of [Tailscale](https://tailscale.com). If you're unfamiliar with Tailscale, the TL;DR is that it's a peer-to-peer mesh network built on Wireguard, and it's incredibly easy to use. With Tailscale, I never have to open ports in my firewall or expose anything directly to the internet. If I add it to my tailnet, I can access it anywhere, from anything that can run tailscale (which is most things). 
 
